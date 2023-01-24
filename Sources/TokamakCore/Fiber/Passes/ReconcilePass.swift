@@ -17,6 +17,28 @@
 
 import Foundation
 
+extension FiberReconciler.Fiber {
+  private var anyView: Any {
+    switch content {
+    case let .app(a, visit: _): return a
+    case let .scene(s, visit: _): return s
+    case let .view(v, visit: _): return v
+    }
+  }
+
+  func appear() {
+    if let appearanceAction = anyView as? AppearanceActionType {
+      appearanceAction.appear?()
+    }
+  }
+
+  func disappear() {
+    if let appearanceAction = anyView as? AppearanceActionType {
+      appearanceAction.disappear?()
+    }
+  }
+}
+
 /// Walk the current tree, recomputing at each step to check for discrepancies.
 ///
 /// Parent-first depth-first traversal.
@@ -151,6 +173,7 @@ struct ReconcilePass: FiberReconcilerPass {
         var nextChildOrSibling: FiberReconciler.Fiber? = alternateChild
         while let child = nextChildOrSibling {
           walk(child) { node in
+            node.disappear()
             if let element = node.element,
                let parent = node.elementParent?.element
             {
@@ -198,6 +221,7 @@ struct ReconcilePass: FiberReconcilerPass {
             invalidateCache(for: fiber, in: reconciler, caches: caches)
           }
           walk(currentAltSibling) { node in
+            node.disappear()
             if let element = node.element,
                let parent = node.elementParent?.element
             {
