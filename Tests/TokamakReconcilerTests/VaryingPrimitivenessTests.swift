@@ -129,4 +129,100 @@ final class VaryingPrimitivenessTests: XCTestCase {
     XCTAssert(root.children[0].children[1].description.contains("Text"))
     XCTAssert(root.children[0].children[2].description.contains("ButtonStyle"))
   }
+
+  func testCorrectParent() {
+    final class Router<R>: ObservableObject where R: RawRepresentable, R.RawValue == String {
+      private static func currentRoute() -> R {
+        return R(rawValue: "")!
+      }
+
+      @Published var route: R = Router.currentRoute()
+    }
+
+    enum Routes: RawRepresentable {
+      init?(rawValue: String) {
+        if rawValue == "" { self = .list; return }
+        let comps = rawValue.components(separatedBy: "/")
+        if comps.count == 1 { self = .package(comps[0]); return }
+        if comps.count == 2 { self = .project(comps[0], comps[1]); return }
+        return nil
+      }
+
+      var rawValue: String {
+        switch self {
+        case .list: return ""
+        case .package(let id): return id
+        case .project(let package, let proj): return "\(package)/\(proj)"
+        }
+      }
+
+      case list
+      case package(String)
+      case project(String, String)
+    }
+
+    struct IdString: Identifiable, ExpressibleByStringLiteral {
+      let s: String
+
+      init(stringLiteral value: StringLiteralType) {
+        s = value
+      }
+
+      var id: String { s }
+    }
+
+    struct ListView: View {
+      let router: Router<Routes>
+
+      var body: some View {
+        VStack {
+          Text("packages:")
+          let content: [IdString] = ["a", "b", "c"]
+          ForEach(content) { p in
+            Button(p.s) {
+              router.route = .package(p.s)
+            }.identified(by: p.s)
+          }
+        }
+      }
+    }
+
+    struct PackageView: View {
+      let router: Router<Routes>
+      let packageId: String
+
+      var body: some View {
+        VStack {
+          let content: [IdString] = ["1", "2"]
+          Text(packageId)
+            .font(.headline)
+          Text(packageId)
+          ForEach(content) { p in
+            Button(p.s) {
+              router.route = .project(packageId, p.s)
+            }.identified(by: p.s)
+          }
+        }
+      }
+    }
+
+    struct ContentView: View {
+      @ObservedObject var r = Router<Routes>()
+
+      var body: some View {
+        switch r.route {
+        case .list: ListView(router: r)
+        case .package(let package): VStack { PackageView(router: r, packageId: package) }
+        case .project(_, let project): VStack { Text("\(project)") }
+        }
+      }
+    }
+
+    let reconciler = TestFiberRenderer(.root, size: .zero).render(ContentView())
+    let root = reconciler.renderer.rootElement
+
+    reconciler.findView(id: "a").tap()
+    reconciler.findView(id: "1").tap()
+    XCTAssert(root.children.count == 1)
+  }
 }
