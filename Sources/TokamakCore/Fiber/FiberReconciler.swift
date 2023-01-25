@@ -259,6 +259,14 @@ public final class FiberReconciler<Renderer: FiberRenderer> {
       break
     }
 
+    print("""
+      reconcile done
+      mutations were:
+      \(visitor.mutations.map { "  \($0)" }.joined(separator: "\n"))
+      alternate is \(current.recursiveDescription)
+      current is \(alternate.recursiveDescription)
+      """)
+
     // Apply mutations to the rendered output.
     renderer.commit(visitor.mutations)
 
@@ -277,14 +285,6 @@ public final class FiberReconciler<Renderer: FiberRenderer> {
       node.alternate?.element = node.element
       return true
     }
-
-    print("""
-      reconcile done
-      mutations were:
-      \(visitor.mutations.map { "  \($0)" }.joined(separator: "\n"))
-      alternate is \(self.alternate.recursiveDescription)
-      current is \(current.recursiveDescription)
-      """)
     
     isReconciling = false
 

@@ -59,7 +59,7 @@ public final class DOMElement: FiberElement {
 
 extension DOMElement: CustomStringConvertible {
   public var description: String {
-    "DOMElement(tag: \(content.tag), attributes: \(content.attributes.filter { $0.key != "style" }), innerHTML: \(content.innerHTML ?? "nil"))"
+    "DOMElement[\(String(format: "%010p", unsafeBitCast(self, to: Int.self)))]\( content.tag == "" ? ".root" : "(tag: \(content.tag), attributes: \(content.attributes.filter { $0.key != "style" }), innerHTML: \(content.innerHTML ?? "nil"))")"
   }
 }
 
