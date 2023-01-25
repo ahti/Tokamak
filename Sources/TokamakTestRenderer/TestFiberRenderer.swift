@@ -172,16 +172,26 @@ public final class TestFiberRenderer: FiberRenderer {
   }
 
   public func commit(_ mutations: [Mutation<TestFiberRenderer>]) {
+    func isReachable(_ el: TestFiberElement, from parent: TestFiberElement = rootElement) -> Bool {
+      el === parent || parent.children.contains(where: { isReachable(el, from: $0) })
+    }
+    func assertReachable(_ el: TestFiberElement) { if !isReachable(el) { fatalError("element not reachable from root") }}
     for mutation in mutations {
       switch mutation {
       case let .insert(element, parent, index):
+        assertReachable(parent)
         parent.children.insert(element, at: index)
       case let .remove(element, parent):
-        guard let idx = parent?.children.firstIndex(where: { $0 === element })
+        guard let parent else {
+          fatalError("remove called without parent")
+        }
+        assertReachable(parent)
+        guard let idx = parent.children.firstIndex(where: { $0 === element })
           else { fatalError("remove called with element that doesn't belong to its parent") }
-        parent?.children.remove(at: idx)
+        parent.children.remove(at: idx)
       case let .replace(parent, previous, replacement):
-//        guard previous !== replacement else { fatalError("nonsensical replace called with previous == replacement") }
+        assertReachable(parent)
+        guard previous !== replacement else { fatalError("nonsensical replace called with previous == replacement") }
         guard let index = parent.children.firstIndex(where: { $0 === previous })
           else { fatalError("replace called with previous element that doesn't belong to its parent") }
         let grandchildren = parent.children[index].children
@@ -190,6 +200,7 @@ public final class TestFiberRenderer: FiberRenderer {
       case let .layout(element, geometry):
         element.geometry = geometry
       case let .update(previous, newContent, _):
+        assertReachable(previous)
         previous.update(with: newContent)
       }
     }

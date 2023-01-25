@@ -23,6 +23,7 @@ extension FiberReconciler.Fiber {
     case let .app(a, visit: _): return a
     case let .scene(s, visit: _): return s
     case let .view(v, visit: _): return v
+    case .none: fatalError()
     }
   }
 
@@ -313,8 +314,14 @@ struct ReconcilePass: FiberReconcilerPass {
       if let c = content { element.update(with: c) }
       return .insert(element: element, parent: parent, index: index)
 
-    case let (element?, _, previous?) where !canUpdate(fiber):
+    case let (element?, content, previous?) where !canUpdate(fiber):
       guard let parent = fiber.elementParent?.element else { break }
+
+      var element = element
+      if let c = content {
+        element = R.ElementType(from: c)
+        fiber.element = element
+      }
 
       return .replace(parent: parent, previous: previous, replacement: element)
 
