@@ -267,6 +267,7 @@ public final class FiberReconciler<Renderer: FiberRenderer> {
       current is \(alternate.recursiveDescription)
       """)
 
+
     // Apply mutations to the rendered output.
     renderer.commit(visitor.mutations)
 
@@ -277,14 +278,6 @@ public final class FiberReconciler<Renderer: FiberRenderer> {
     let alternate = alternate
     self.alternate = current
     current = alternate
-
-    // copy over elements to the alternate, so when an element is
-    // replaced, the old element can still be accessed to emit
-    // removal mutations for its children
-    walk(current) { node in
-      node.alternate?.element = node.element
-      return true
-    }
     
     isReconciling = false
 

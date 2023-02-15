@@ -27,7 +27,6 @@ extension FiberReconciler {
       unowned var parent: Result?
       var child: Result?
       var sibling: Result?
-      var newContent: Renderer.ElementType.Content?
       var elementIndices: [ObjectIdentifier: Int]
       var nextTraits: _ViewTraitStore
 
@@ -35,6 +34,10 @@ extension FiberReconciler {
       var lastSibling: Result?
       var nextExisting: Fiber?
       var nextExistingAlternate: Fiber?
+
+      // Side-effects
+      var deletions: [Fiber]
+      var updates: [(Fiber, Renderer.ElementType.Content)]
 
       init(
         fiber: Fiber?,
@@ -51,9 +54,10 @@ extension FiberReconciler {
         self.parent = parent
         nextExisting = child
         nextExistingAlternate = alternateChild
-        self.newContent = newContent
         self.elementIndices = elementIndices
         self.nextTraits = nextTraits
+        deletions = []
+        updates = []
       }
     }
 
@@ -130,8 +134,12 @@ extension FiberReconciler {
       // Create the node and its element.
       var nextValue = nextValue
 
+      print("TreeReducer.reduce()\n ++ nextValue \(nextValue)\n ++ nextExisting \(partialResult.nextExisting)")
+
       let resultChild: Result
       if let existing = partialResult.nextExisting {
+//        existing.updateDynamicProperties()
+        existing.alternate = partialResult.nextExistingAlternate
         // If a fiber already exists, simply update it with the new view.
         let elementParent = partialResult.fiber?.element != nil
           ? partialResult.fiber
@@ -149,19 +157,37 @@ extension FiberReconciler {
           key.map { partialResult.elementIndices[$0, default: 0] },
           partialResult.nextTraits
         )
+
+        if existing.typeInfo?.type != existing.alternate?.typeInfo?.type {
+          existing.appear()
+        }
+
+        var didReplaceElement = false
+
+        if let c = newContent, c != existing.element?.content {
+          partialResult.updates.append((existing, c))
+        }
+        if newContent == nil, let alt = existing.alternate, alt.element != nil {
+          partialResult.deletions.append(alt)
+          existing.alternate = nil
+          didReplaceElement = true
+        }
+        print(" +++ did replace? \(didReplaceElement)")
+
         resultChild = Result(
           fiber: existing,
           visitChildren: visitChildren(partialResult.fiber?.reconciler, nextValue),
           parent: partialResult,
-          child: existing.child,
-          alternateChild: existing.alternate?.child,
+          child: didReplaceElement ? nil : existing.child,
+          alternateChild: didReplaceElement ? nil : existing.alternate?.child,
           newContent: newContent,
           elementIndices: partialResult.elementIndices,
           nextTraits: existing.element != nil ? .init() : partialResult.nextTraits
         )
-        partialResult.nextExisting = existing.sibling
+        partialResult.nextExisting = partialResult.nextExisting?.sibling
         partialResult.nextExistingAlternate = partialResult.nextExistingAlternate?.sibling
         existing.sibling = nil
+        existing.child = nil
       } else {
         let elementParent = partialResult.fiber?.element != nil
           ? partialResult.fiber
@@ -178,7 +204,7 @@ extension FiberReconciler {
         // Otherwise, create a new fiber for this child.
         let fiber = createFiber(
           &nextValue,
-          partialResult.nextExistingAlternate?.element,
+          nil,
           partialResult.fiber,
           elementParent,
           preferenceParent,
@@ -187,10 +213,15 @@ extension FiberReconciler {
           partialResult.fiber?.reconciler
         )
 
+        fiber.appear()
+
         // If a fiber already exists for an alternate, link them.
         if let alternate = partialResult.nextExistingAlternate {
           fiber.alternate = alternate
+          alternate.alternate = fiber
           partialResult.nextExistingAlternate = alternate.sibling
+
+          if alternate.element != nil { partialResult.deletions.append(alternate) }
         }
         resultChild = Result(
           fiber: fiber,

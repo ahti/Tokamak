@@ -222,6 +222,7 @@ final class VaryingPrimitivenessTests: XCTestCase {
     let root = reconciler.renderer.rootElement
 
     reconciler.findView(id: "a").tap()
+    XCTAssert(root.children.count == 1)
     reconciler.findView(id: "1").tap()
     XCTAssert(root.children.count == 1)
   }

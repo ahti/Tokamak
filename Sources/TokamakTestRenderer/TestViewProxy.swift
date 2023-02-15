@@ -46,7 +46,7 @@ public struct TestViewProxy<V: View> {
             !(view is AnyOptional),
             (view as? IdentifiedViewProtocol)?.id == AnyHashable(id),
             let child = fiber.child
-      else { return WalkWorkResult.continue }
+      else { return WalkWorkResult.stepIn }
       return WalkWorkResult.break(with: child)
     }
     guard case let .success(fiber) = result else { return nil }

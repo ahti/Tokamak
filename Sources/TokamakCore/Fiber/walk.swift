@@ -17,7 +17,8 @@
 
 @_spi(TokamakCore)
 public enum WalkWorkResult<Success> {
-  case `continue`
+  case stepIn
+  case stepOver
   case `break`(with: Success)
   case pause
 }
@@ -37,7 +38,7 @@ public func walk<Renderer: FiberRenderer>(
   _ work: @escaping (FiberReconciler<Renderer>.Fiber) throws -> Bool
 ) rethrows -> WalkResult<Renderer, ()> {
   try walk(root) {
-    try work($0) ? .continue : .pause
+    try work($0) ? .stepIn : .pause
   }
 }
 
@@ -60,27 +61,29 @@ public func walk<Renderer: FiberRenderer, Success>(
   while true {
     // Perform work on the node
     switch try work(current) {
-    case .continue: break
     case let .break(success): return .success(success)
     case .pause: return .paused(at: current)
-    }
-    // Walk into the child
-    if let child = current.child {
-      current = child
-      continue
-    }
-    // When we walk back to the root, exit
-    if current === root {
-      return .finished
-    }
-    // Walk back up until we find a sibling
-    while current.sibling == nil {
+    case .stepIn:
+      // Walk into the child
+      if let child = current.child {
+        current = child
+        continue
+      }
+      fallthrough
+    case .stepOver:
       // When we walk back to the root, exit
-      guard let parent = current.parent,
-            parent !== root else { return .finished }
-      current = parent
+      if current === root {
+        return .finished
+      }
+      // Walk back up until we find a sibling
+      while current.sibling == nil {
+        // When we walk back to the root, exit
+        guard let parent = current.parent,
+              parent !== root else { return .finished }
+        current = parent
+      }
+      // Walk the sibling
+      current = current.sibling!
     }
-    // Walk the sibling
-    current = current.sibling!
   }
 }
