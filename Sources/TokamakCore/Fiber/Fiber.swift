@@ -64,7 +64,7 @@ public extension FiberReconciler {
     var layout: AnyLayout?
 
     /// The identity of this `View`
-    var id: Identity?
+//    var id: Identity?
 
     /// The mounted element, if this is a `Renderer` primitive.
     var element: Renderer.ElementType?
@@ -135,10 +135,10 @@ public extension FiberReconciler {
       }
     }
 
-    public enum Identity: Hashable {
-      case explicit(AnyHashable)
-      case structural(index: Int)
-    }
+//    public enum Identity: Hashable {
+//      case explicit(AnyHashable)
+//      case structural(index: Int)
+//    }
 
     init<V: View>(
       _ view: inout V,

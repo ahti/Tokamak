@@ -329,7 +329,7 @@ public struct DOMFiberRenderer: FiberRenderer {
           _ = replacementElement.appendChild!(g)
         }
       case let .update(previous, newContent, geometry):
-        previous.update(with: newContent)
+        previous.content = newContent
         guard let previousElement = previous.reference
         else { fatalError("The element does not exist (trying to update element).") }
         apply(newContent, to: previousElement)

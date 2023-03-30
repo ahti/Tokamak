@@ -101,6 +101,13 @@ struct ReconcilePass: FiberReconcilerPass {
       }
     }
 
+    func callAppear(_ fiber: FiberReconciler<R>.Fiber) {
+      _ = walk(fiber) {
+        $0.appear()
+        return true
+      }
+    }
+
     func deleteElementChildren(_ fiber: FiberReconciler<R>.Fiber) -> [Mutation<R>] {
       var elementChildren: [FiberReconciler<R>.Fiber] = []
       _ = walk(fiber) { child -> WalkWorkResult<()> in
@@ -147,14 +154,29 @@ struct ReconcilePass: FiberReconcilerPass {
         if let element = fiber.element,
            let parent = fiber.elementParent?.element,
            let index = fiber.elementIndex,
-           fiber.alternate?.element == nil
+           node.didInsert
         {
+          callAppear(fiber)
           caches.mutations.append(.insert(element: element, parent: parent, index: index))
+        }
+
+        if let element = fiber.element, let c = node.newContent {
+          caches.mutations.append(
+            .update(
+              previous: element,
+              newContent: c,
+              geometry: fiber.geometry ?? .init(
+                origin: .init(origin: .zero),
+                dimensions: .init(size: .zero, alignmentGuides: [:]),
+                proposal: .unspecified
+              )
+            )
+          )
         }
       }
 
       // Ensure the `TreeReducer` can access any necessary state.
-      node.elementIndices = caches.elementIndices
+//      node.elementIndices = caches.elementIndices
       // Pass view traits down to the nearest element fiber.
       if let traits = node.fiber?.outputs.traits,
          !traits.values.isEmpty
@@ -168,27 +190,28 @@ struct ReconcilePass: FiberReconcilerPass {
       let reducer = FiberReconciler<R>.TreeReducer.SceneVisitor(initialResult: node)
       node.visitChildren(reducer)
 
-      for (fiber, newContent) in reducer.result.updates {
-        caches.mutations.append(
-          .update(
-            previous: fiber.element!,
-            newContent: newContent,
-            geometry: fiber.geometry ?? .init(
-              origin: .init(origin: .zero),
-              dimensions: .init(size: .zero, alignmentGuides: [:]),
-              proposal: .unspecified
-            )
-          )
-        )
-      }
+//      for (fiber, newContent) in reducer.result.updates {
+//        caches.mutations.append(
+//          .update(
+//            previous: fiber.element!,
+//            newContent: newContent,
+//            geometry: fiber.geometry ?? .init(
+//              origin: .init(origin: .zero),
+//              dimensions: .init(size: .zero, alignmentGuides: [:]),
+//              proposal: .unspecified
+//            )
+//          )
+//        )
+//      }
 
-      for d in reducer.result.deletions {
+      let orphans = reducer.result.unclaimedCurrentChildren.values
+      
+
+      for d in orphans {
         callDisappear(d)
+        let deletions = deleteElementChildren(d)
+        caches.mutations.insert(contentsOf: deletions, at: 0)
       }
-      let deletions = reducer.result.deletions.lazy.reversed().flatMap {
-        deleteElementChildren($0)
-      }
-      caches.mutations.insert(contentsOf: deletions, at: 0)
 
       node.fiber?.preferences?.reset()
 
