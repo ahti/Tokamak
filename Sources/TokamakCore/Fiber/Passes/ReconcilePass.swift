@@ -151,12 +151,15 @@ struct ReconcilePass: FiberReconcilerPass {
       if let fiber = node.fiber, shouldReconcile || true {
         invalidateCache(for: fiber, in: reconciler, caches: caches)
 
+        if node.didInsert {
+          fiber.appear()
+        }
+
         if let element = fiber.element,
            let parent = fiber.elementParent?.element,
            let index = fiber.elementIndex,
            node.didInsert
         {
-          callAppear(fiber)
           caches.mutations.append(.insert(element: element, parent: parent, index: index))
         }
 
@@ -175,8 +178,6 @@ struct ReconcilePass: FiberReconcilerPass {
         }
       }
 
-      // Ensure the `TreeReducer` can access any necessary state.
-//      node.elementIndices = caches.elementIndices
       // Pass view traits down to the nearest element fiber.
       if let traits = node.fiber?.outputs.traits,
          !traits.values.isEmpty
@@ -189,23 +190,8 @@ struct ReconcilePass: FiberReconcilerPass {
       // Compute the children of the node.
       let reducer = FiberReconciler<R>.TreeReducer.SceneVisitor(initialResult: node)
       node.visitChildren(reducer)
-
-//      for (fiber, newContent) in reducer.result.updates {
-//        caches.mutations.append(
-//          .update(
-//            previous: fiber.element!,
-//            newContent: newContent,
-//            geometry: fiber.geometry ?? .init(
-//              origin: .init(origin: .zero),
-//              dimensions: .init(size: .zero, alignmentGuides: [:]),
-//              proposal: .unspecified
-//            )
-//          )
-//        )
-//      }
-
       let orphans = reducer.result.unclaimedCurrentChildren.values
-      
+
 
       for d in orphans {
         callDisappear(d)
@@ -233,11 +219,6 @@ struct ReconcilePass: FiberReconcilerPass {
         }
       }
 
-      // Setup the alternate if it doesn't exist yet.
-//      if node.fiber?.alternate == nil {
-//        _ = node.fiber?.createAndBindAlternate?()
-//      }
-
       // Walk down all the way into the deepest child.
       if let child = reducer.result.child {
         node = child
@@ -257,7 +238,6 @@ struct ReconcilePass: FiberReconcilerPass {
       if reducer.result.child == nil {
         // Make sure we clear the child if there was none
         node.fiber?.child = nil
-//        node.fiber?.alternate?.child = nil
       }
 
       // If we've made it back to the root, then exit.
@@ -292,7 +272,6 @@ struct ReconcilePass: FiberReconcilerPass {
           caches.mutations.insert(contentsOf: deleteElementChildren(currentAltSibling), at: 0)
           alternateSibling = currentAltSibling.sibling
         }
-//        node.fiber?.alternate?.sibling = nil
         guard let parent = node.parent else { return }
         // When we walk back to the root, exit
         guard parent !== root.fiber?.alternate else { return }
@@ -307,98 +286,6 @@ struct ReconcilePass: FiberReconcilerPass {
       node = node.sibling!
     }
   }
-
-  /// Compare `node` with its alternate, and add any mutations to the list.
-//  func reconcile<R: FiberRenderer>(
-//    _ node: FiberReconciler<R>.TreeReducer.Result,
-//    in reconciler: FiberReconciler<R>,
-//    caches: FiberReconciler<R>.Caches
-//  ) {
-//    guard let fiber = node.fiber else { return }
-//
-//    if fiber.alternate == nil {
-//      fiber.appear()
-//    }
-//
-//    func canUpdate(_ fiber: FiberReconciler<R>.Fiber) -> Bool {
-//      fiber.typeInfo?.type == fiber.alternate?.typeInfo?.type
-//    }
-//
-//
-//    print("reconcile(...) with \n  el \(fiber.element)\n \n  ae \(fiber.alternate?.element)\n  cu \(canUpdate(fiber))")
-//
-//    switch (fiber.element, node.newContent, fiber.alternate?.element) {
-////    case let (nil, content?, nil):
-////      guard let index = fiber.elementIndex, let parent = fiber.elementParent?.element else { break }
-////
-////      let el = R.ElementType(from: content)
-////      fiber.element = el
-//////      fiber.alternate?.element = el
-////
-////      caches.mutations.append(.insert(element: el, parent: parent, index: index))
-//
-//    case let (el?, maybeContent, altElement?) where !canUpdate(fiber) || fiber.elementParent?.element !== fiber.alternate?.elementParent?.element:
-//      guard let parent = fiber.elementParent?.element else { break }
-//
-////      let el = R.ElementType(from: content)
-////      fiber.element = el
-////      fiber.alternate?.element = el
-//
-//      caches.mutations.insert(.remove(element: altElement, parent: fiber.alternate?.elementParent?.element!), at: 0)
-//      caches.mutations.append(.insert(element: el, parent: parent, index: fiber.elementIndex!))
-//      if let c = maybeContent {
-//        caches.mutations.append(.update(previous: el, newContent: c, geometry: fiber.geometry ?? .init(
-//          origin: .init(origin: .zero),
-//          dimensions: .init(size: .zero, alignmentGuides: [:]),
-//          proposal: .unspecified
-//        )))
-//      }
-//
-////    case let (nil, content?, element?) where canUpdate(fiber) && content != element.content,
-////    case let (element?, content?, alt) where canUpdate(fiber) && content != element.content && fiber.elementParent?.element !== fiber.alternate?.elementParent?.element:
-//
-//    case let (element?, content?, _) where canUpdate(fiber) && content != element.content:
-//      guard fiber.elementParent?.element != nil else { break } // todo: is this needed?
-//
-////      fiber.element = element
-//      caches.mutations.append(.update(
-//        previous: element,
-//        newContent: content,
-//        geometry: fiber.geometry ?? .init(
-//          origin: .init(origin: .zero),
-//          dimensions: .init(size: .zero, alignmentGuides: [:]),
-//          proposal: .unspecified
-//        )
-//      ))
-//
-//    case let (nil, nil, alt?):
-////    case let (_, nil, alt?):
-//      guard let parent = fiber.alternate?.elementParent?.element else { break } // todo: name => altParent?
-//      caches.mutations.insert(.remove(element: alt, parent: parent), at: 0)
-//
-//    case let (element?, nil, nil):
-//      guard let parent = fiber.elementParent?.element,
-//            let index = fiber.elementIndex
-//        else { break }
-//
-////      if let c = content { element.update(with: c) }
-//      caches.mutations.append(.insert(element: element, parent: parent, index: index))
-//
-//    case let (element?, content, previous?) where !canUpdate(fiber):
-//      guard let parent = fiber.elementParent?.element else { break }
-//
-////      var element = element
-////      if let c = content {
-////        element = R.ElementType(from: c)
-////        fiber.element = element
-////      }
-//
-//      caches.mutations.append(.replace(parent: parent, previous: previous, replacement: element))
-//
-//    default:
-//      break
-//    }
-//  }
 
   /// Remove cached size values if something changed.
   func invalidateCache<R: FiberRenderer>(

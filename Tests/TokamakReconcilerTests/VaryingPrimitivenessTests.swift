@@ -226,4 +226,38 @@ final class VaryingPrimitivenessTests: XCTestCase {
     reconciler.findView(id: "1").tap()
     XCTAssert(root.children.count == 1)
   }
+
+  func testPrimitivenessMovingLevel() {
+    struct Vary: View {
+      struct C: Identifiable { let id: String }
+      @State var s: Bool
+      var body: some View {
+        if s {
+          Text("hello").onAppear {
+            s = false
+          }
+        } else {
+          ForEach([C(id: "abc")]) {
+            Text($0.id)
+          }
+        }
+      }
+    }
+    struct ContentView: View {
+      var body: some View {
+        VStack {
+          Vary(s: true)
+        }
+      }
+    }
+    let reconciler = TestFiberRenderer(.root, size: .zero).render(ContentView())
+    let root = reconciler.renderer.rootElement
+
+    print(root)
+
+    reconciler.renderer.flush()
+
+    print(root)
+
+  }
 }

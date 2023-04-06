@@ -391,13 +391,6 @@ public extension FiberReconciler {
       if Renderer.isPrimitive(view) && alternate?.element != nil && alternate?.typeInfo?.type == typeInfo?.type {
         print(" -> updating content")
         retContent = .init(from: view, useDynamicLayout: reconciler?.renderer.useDynamicLayout ?? false)
-        element = alternate?.element
-      } else if Renderer.isPrimitive(view) {
-        print(" -> creating element")
-        element = .init(from: .init(from: view, useDynamicLayout: reconciler?.renderer.useDynamicLayout ?? false))
-      } else {
-        print(" -> nil element")
-        element = nil
       }
 
       if element != nil {
