@@ -17,25 +17,18 @@
 
 import Foundation
 
-extension FiberReconciler.Fiber {
-  private var anyView: Any {
-    switch content {
-    case let .app(a, visit: _): return a
-    case let .scene(s, visit: _): return s
-    case let .view(v, visit: _): return v
-    case .none: fatalError()
-    }
-  }
-
+private extension FiberReconciler.Fiber {
+  /// calls `onAppear` action for appearance modifier views
   func appear() {
-    if let appearanceAction = anyView as? AppearanceActionType {
-      appearanceAction.appear?()
+    if case let .view(action as AppearanceActionType, _) = content {
+      action.appear?()
     }
   }
 
+  /// calls `onDisappear` action for appearance modifier views
   func disappear() {
-    if let appearanceAction = anyView as? AppearanceActionType {
-      appearanceAction.disappear?()
+    if case let .view(action as AppearanceActionType, _) = content {
+      action.disappear?()
     }
   }
 }
