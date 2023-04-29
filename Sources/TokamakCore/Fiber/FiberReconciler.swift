@@ -198,7 +198,6 @@ public final class FiberReconciler<Renderer: FiberRenderer> {
         currentChildren: root.mappedChildren,
         visitChildren: visitChildren,
         parent: nil,
-        newContent: nil,
         nextTraits: .init()
       )
       reconciler.caches.clear()

@@ -17,37 +17,6 @@
 
 import Foundation
 
-enum SlotIndex: Hashable {
-  case index(Int)
-  case id(AnyHashable)
-}
-
-extension FiberReconciler.Fiber {
-  private var id: AnyHashable? {
-    guard case let .view(v, _) = content,
-          let ident = v as? _AnyIDView
-      else { return nil }
-    return ident.anyId
-  }
-  var mappedChildren: [SlotIndex: FiberReconciler.Fiber] {
-    var map = [SlotIndex: FiberReconciler.Fiber]()
-
-    var currentIndex = 0
-    var currentChild = child
-    while let aChild = currentChild {
-      if let id = aChild.id {
-        map[.id(id)] = aChild
-      } else {
-        map[.index(currentIndex)] = aChild
-      }
-      currentIndex += 1
-      currentChild = aChild.sibling
-    }
-
-    return map
-  }
-}
-
 extension FiberReconciler {
   /// Convert the first level of children of a `View` into a linked list of `Fiber`s.
   struct TreeReducer: SceneReducer {
@@ -63,7 +32,7 @@ extension FiberReconciler {
       // For reducing
       var lastSibling: Result?
       var processedChildCount: Int
-      var unclaimedCurrentChildren: [SlotIndex: Fiber]
+      var unclaimedCurrentChildren: [Fiber.Identity: Fiber]
 
       // Side-effects
       var didInsert: Bool
@@ -71,10 +40,9 @@ extension FiberReconciler {
 
       init(
         fiber: Fiber?,
-        currentChildren: [SlotIndex: Fiber],
+        currentChildren: [Fiber.Identity: Fiber],
         visitChildren: @escaping (TreeReducer.SceneVisitor) -> (),
         parent: Result?,
-        newContent: Renderer.ElementType.Content? = nil,
         nextTraits: _ViewTraitStore
       ) {
         self.fiber = fiber
@@ -163,11 +131,11 @@ extension FiberReconciler {
       // Create the node and its element.
       var nextValue = nextValue
 
-      let nextValueSlot: SlotIndex
+      let nextValueSlot: Fiber.Identity
       if let ident = nextValue as? _AnyIDView {
-        nextValueSlot = .id(ident.anyId)
+        nextValueSlot = .explicit(ident.anyId)
       } else {
-        nextValueSlot = .index(partialResult.processedChildCount)
+        nextValueSlot = .structural(partialResult.processedChildCount)
       }
 
       let resultChild: Result

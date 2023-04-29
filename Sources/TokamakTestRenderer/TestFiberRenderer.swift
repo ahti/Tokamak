@@ -189,14 +189,6 @@ public final class TestFiberRenderer: FiberRenderer {
         guard let idx = parent.children.firstIndex(where: { $0 === element })
           else { fatalError("remove called with element that doesn't belong to its parent") }
         parent.children.remove(at: idx)
-      case let .replace(parent, previous, replacement):
-        assertReachable(parent)
-        guard previous !== replacement else { fatalError("nonsensical replace called with previous == replacement") }
-        guard let index = parent.children.firstIndex(where: { $0 === previous })
-          else { fatalError("replace called with previous element that doesn't belong to its parent") }
-        let grandchildren = parent.children[index].children
-        replacement.children = grandchildren
-        parent.children[index] = replacement
       case let .layout(element, geometry):
         element.geometry = geometry
       case let .update(previous, newContent, _):
