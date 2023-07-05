@@ -63,9 +63,6 @@ public extension FiberReconciler {
     /// Stored as an IUO because it uses `bindProperties` to create the underlying instance.
     var layout: AnyLayout?
 
-    /// The identity of this `View`
-//    var id: Identity?
-
     /// The mounted element, if this is a `Renderer` primitive.
     var element: Renderer.ElementType?
 
@@ -135,10 +132,36 @@ public extension FiberReconciler {
       }
     }
 
-//    public enum Identity: Hashable {
-//      case explicit(AnyHashable)
-//      case structural(index: Int)
-//    }
+    public enum Identity: Hashable {
+      case explicit(AnyHashable)
+      case structural(index: Int)
+    }
+
+    /// The explicit identity of this `View`, if provided
+    private var explicitId: AnyHashable? {
+      guard case let .view(v as _AnyIDView, _) = content else { return nil }
+      return v.anyId
+    }
+
+    /// Direct children of this fiber, keyed by their explicit or structural identity
+    var mappedChildren: [Identity: Fiber] {
+      var map = [Identity: Fiber]()
+
+      var currentIndex = 0
+      var currentChild = child
+
+      while let aChild = currentChild {
+        if let id = aChild.explicitId {
+          map[.explicit(id)] = aChild
+        } else {
+          map[.structural(index: currentIndex)] = aChild
+        }
+        currentIndex += 1
+        currentChild = aChild.sibling
+      }
+
+      return map
+    }
 
     init<V: View>(
       _ view: inout V,
@@ -386,18 +409,15 @@ public extension FiberReconciler {
       view = updateView
       content = content(for: view)
 
-      var retContent: Renderer.ElementType.Content? = nil
-      print("Fiber.update(with: \(view))\n   alternate is \(alternate ?? nil)")
-      if Renderer.isPrimitive(view) && alternate?.element != nil && alternate?.typeInfo?.type == typeInfo?.type {
-        print(" -> updating content")
-        retContent = .init(from: view, useDynamicLayout: reconciler?.renderer.useDynamicLayout ?? false)
-      }
-
       if element != nil {
         layout = (view as? _AnyLayout)?._erased() ?? DefaultLayout.shared
       }
 
-      return retContent
+      if Renderer.isPrimitive(view) && alternate?.element != nil && alternate?.typeInfo?.type == typeInfo?.type {
+        return .init(from: view, useDynamicLayout: reconciler?.renderer.useDynamicLayout ?? false)
+      } else {
+        return nil
+      }
     }
 
     init<A: App>(
