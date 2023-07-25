@@ -260,4 +260,33 @@ final class VaryingPrimitivenessTests: XCTestCase {
     print(root)
 
   }
+
+  func testInsertingNewPrimitiveView() {
+    struct V: View {
+      @State var s: Bool
+      var body: some View {
+        Button("update") {
+          s.toggle()
+        }.id("button")
+        Text("a")
+        if s {
+          Text("b").id("b")
+        }
+      }
+    }
+
+    struct V2: View {
+      var body: some View {
+        V(s: true)
+      }
+    }
+
+    let reconciler = TestFiberRenderer(.root, size: .zero).render(V2())
+
+    print(reconciler.renderer.rootElement)
+
+    reconciler.findView(id: "button").tap()
+
+    print(reconciler.renderer.rootElement)
+  }
 }
