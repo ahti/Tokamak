@@ -132,6 +132,10 @@ extension FiberReconciler {
       // Create the node and its element.
       var nextValue = nextValue
 
+      // todo: commenting this in results in EXC_BAD_ACCESS crash in testDynamicProperties
+      //       find out what's going on, could be a swift bug?
+      print("TreeReducer visiting child \(nextValue as? any View)")
+
       let nextValueSlot: Fiber.Identity
       if let ident = nextValue as? _AnyIDView {
         nextValueSlot = .explicit(ident.anyId)
