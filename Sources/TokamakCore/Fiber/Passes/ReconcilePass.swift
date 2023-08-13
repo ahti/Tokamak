@@ -175,7 +175,6 @@ struct ReconcilePass: FiberReconcilerPass {
       let reducer = FiberReconciler<R>.TreeReducer.SceneVisitor(initialResult: node)
       node.visitChildren(reducer)
 
-      let orphans =
       for orphan in reducer.result.unclaimedCurrentChildren.values {
         orphan.callOnDisappearRecursive()
         caches.mutations.insert(contentsOf: mutationsForRemoving(orphan), at: 0)
