@@ -18,17 +18,20 @@
 import Foundation
 
 private extension FiberReconciler.Fiber {
-  /// calls `onAppear` action for appearance modifier views
-  func appear() {
+  /// calls `onAppear` handler if present on self
+  func callOnAppear() {
     if case let .view(action as AppearanceActionType, _) = content {
       action.appear?()
     }
   }
 
-  /// calls `onDisappear` action for appearance modifier views
-  func disappear() {
-    if case let .view(action as AppearanceActionType, _) = content {
-      action.disappear?()
+  /// calls any `onDisappear` handlers on self or children
+  func callOnDisappearRecursive() {
+    _ = walk(self) { fiber in
+      if case let .view(action as AppearanceActionType, _) = fiber.content {
+        action.disappear?()
+      }
+      return true
     }
   }
 }
@@ -87,25 +90,13 @@ struct ReconcilePass: FiberReconcilerPass {
     // Enabled when we reach the `reconcileRoot`.
     var shouldReconcile = false
 
-    func callDisappear(_ fiber: FiberReconciler<R>.Fiber) {
-      _ = walk(fiber) {
-        $0.disappear()
-        return true
-      }
-    }
-
-    func callAppear(_ fiber: FiberReconciler<R>.Fiber) {
-      _ = walk(fiber) {
-        $0.appear()
-        return true
-      }
-    }
-
-    func deleteElementChildren(_ fiber: FiberReconciler<R>.Fiber) -> [Mutation<R>] {
+    func mutationsForRemoving(_ fiber: FiberReconciler<R>.Fiber) -> [Mutation<R>] {
       var elementChildren: [FiberReconciler<R>.Fiber] = []
       _ = walk(fiber) { child -> WalkWorkResult<()> in
         if child.element != nil {
           elementChildren.append(child)
+          // we removed this element, so any children are removed with it
+          // and we don't need to go deeper
           return .stepOver
         } else {
           return .stepIn
@@ -145,7 +136,7 @@ struct ReconcilePass: FiberReconcilerPass {
         invalidateCache(for: fiber, in: reconciler, caches: caches)
 
         if node.didInsert {
-          fiber.appear()
+          fiber.callOnAppear()
         }
 
         if let element = fiber.element,
@@ -183,13 +174,11 @@ struct ReconcilePass: FiberReconcilerPass {
       // Compute the children of the node.
       let reducer = FiberReconciler<R>.TreeReducer.SceneVisitor(initialResult: node)
       node.visitChildren(reducer)
-      let orphans = reducer.result.unclaimedCurrentChildren.values
 
-
-      for d in orphans {
-        callDisappear(d)
-        let deletions = deleteElementChildren(d)
-        caches.mutations.insert(contentsOf: deletions, at: 0)
+      let orphans =
+      for orphan in reducer.result.unclaimedCurrentChildren.values {
+        orphan.callOnDisappearRecursive()
+        caches.mutations.insert(contentsOf: mutationsForRemoving(orphan), at: 0)
       }
 
       node.fiber?.preferences?.reset()
@@ -223,8 +212,8 @@ struct ReconcilePass: FiberReconcilerPass {
         }
         var nextChildOrSibling: FiberReconciler.Fiber? = alternateChild
         while let child = nextChildOrSibling {
-          callDisappear(child)
-          caches.mutations.insert(contentsOf: deleteElementChildren(child), at: 0)
+          child.callOnDisappearRecursive()
+          caches.mutations.insert(contentsOf: mutationsForRemoving(child), at: 0)
           nextChildOrSibling = child.sibling
         }
       }
@@ -261,8 +250,8 @@ struct ReconcilePass: FiberReconcilerPass {
           if let fiber = currentAltSibling.elementParent {
             invalidateCache(for: fiber, in: reconciler, caches: caches)
           }
-          callDisappear(currentAltSibling)
-          caches.mutations.insert(contentsOf: deleteElementChildren(currentAltSibling), at: 0)
+          currentAltSibling.callOnDisappearRecursive()
+          caches.mutations.insert(contentsOf: mutationsForRemoving(currentAltSibling), at: 0)
           alternateSibling = currentAltSibling.sibling
         }
         guard let parent = node.parent else { return }
