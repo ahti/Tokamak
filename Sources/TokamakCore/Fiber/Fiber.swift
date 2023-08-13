@@ -132,7 +132,7 @@ public extension FiberReconciler {
       }
     }
 
-    public enum Identity: Hashable {
+    enum Identity: Hashable {
       case explicit(AnyHashable)
       case structural(index: Int)
     }
