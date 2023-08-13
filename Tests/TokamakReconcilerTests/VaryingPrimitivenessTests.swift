@@ -233,13 +233,14 @@ final class VaryingPrimitivenessTests: XCTestCase {
       @State var s: Bool
       var body: some View {
         if s {
-          Text("hello").onAppear {
-            s = false
-          }
+          Text("hello")
         } else {
           ForEach([C(id: "abc")]) {
             Text($0.id)
           }
+        }
+        Text("lol").onAppear {
+          s = false
         }
       }
     }
@@ -253,25 +254,74 @@ final class VaryingPrimitivenessTests: XCTestCase {
     let reconciler = TestFiberRenderer(.root, size: .zero).render(ContentView())
     let root = reconciler.renderer.rootElement
 
-    print(root)
+    XCTAssert(root.children[0].description.contains("VStack"))
+    XCTAssert(root.children[0].children.count == 2)
+    XCTAssert(!root.children[0].children[0].description.contains("abc"))
+    XCTAssert(root.children[0].children[0].description.contains("hello"))
 
     reconciler.renderer.flush()
 
-    print(root)
-
+    XCTAssert(root.children[0].description.contains("VStack"))
+    XCTAssert(root.children[0].children.count == 2)
+    XCTAssert(!root.children[0].children[0].description.contains("hello"))
+    XCTAssert(root.children[0].children[0].description.contains("abc"))
   }
 
-  func testInsertingNewPrimitiveView() {
+  func testInsertingRemovingPrimitiveView() {
     struct V: View {
       @State var s: Bool
       var body: some View {
         Button("update") {
           s.toggle()
-        }.id("button")
-        Text("a")
+        }.identified(by: "button")
         if s {
-          Text("b").id("b")
+          Text("b")
         }
+        Text("a")
+      }
+    }
+
+    struct V2: View {
+      var body: some View {
+        V(s: false)
+      }
+    }
+
+    let reconciler = TestFiberRenderer(.root, size: .zero).render(V2())
+    let root = reconciler.renderer.rootElement
+
+    print(root.recursiveDescription)
+    XCTAssert(root.children.count == 2)
+
+    reconciler.findView(id: "button").tap()
+
+    print(root.recursiveDescription)
+    XCTAssert(root.children.count == 3)
+    XCTAssert(root.children[1].children.count == 0)
+
+    reconciler.findView(id: "button").tap()
+
+    print(root.recursiveDescription)
+    XCTAssert(root.children.count == 2)
+
+    reconciler.findView(id: "button").tap()
+
+    print(root.recursiveDescription)
+    XCTAssert(root.children.count == 3)
+    XCTAssert(root.children[1].children.count == 0)
+  }
+
+  func testRemovingInsertingPrimitiveView() {
+    struct V: View {
+      @State var s: Bool
+      var body: some View {
+        Button("update") {
+          s.toggle()
+        }.identified(by: "button")
+        if s {
+          Text("b")
+        }
+        Text("a")
       }
     }
 
@@ -282,11 +332,27 @@ final class VaryingPrimitivenessTests: XCTestCase {
     }
 
     let reconciler = TestFiberRenderer(.root, size: .zero).render(V2())
+    let root = reconciler.renderer.rootElement
 
-    print(reconciler.renderer.rootElement)
+
+    print(root.recursiveDescription)
+    XCTAssert(root.children.count == 3)
+    XCTAssert(root.children[1].children.count == 0)
 
     reconciler.findView(id: "button").tap()
 
-    print(reconciler.renderer.rootElement)
+    print(root.recursiveDescription)
+    XCTAssert(root.children.count == 2)
+
+    reconciler.findView(id: "button").tap()
+
+    print(root.recursiveDescription)
+    XCTAssert(root.children.count == 3)
+    XCTAssert(root.children[1].children.count == 0)
+
+    reconciler.findView(id: "button").tap()
+
+    print(root.recursiveDescription)
+    XCTAssert(root.children.count == 2)
   }
 }
