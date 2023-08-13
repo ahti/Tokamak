@@ -355,4 +355,22 @@ final class VaryingPrimitivenessTests: XCTestCase {
     print(root.recursiveDescription)
     XCTAssert(root.children.count == 2)
   }
+
+  func testInitialPrimitiveInConditional() {
+    struct V: View {
+      var body: some View {
+        if true {
+          Text("b")
+        }
+      }
+    }
+
+    let reconciler = TestFiberRenderer(.root, size: .zero).render(V())
+    let root = reconciler.renderer.rootElement
+
+
+    print(root.recursiveDescription)
+    XCTAssert(root.children.count == 1)
+    XCTAssert(root.children[0].children.count == 0)
+  }
 }

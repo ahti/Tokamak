@@ -168,7 +168,7 @@ public final class TestFiberRenderer: FiberRenderer {
   }
 
   public static func isPrimitive<V>(_ view: V) -> Bool where V: View {
-    view is TestFiberPrimitive
+    !(view is AnyOptional) && view is TestFiberPrimitive
   }
 
   public func commit(_ mutations: [Mutation<TestFiberRenderer>]) {
