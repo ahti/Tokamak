@@ -27,11 +27,11 @@ private extension FiberReconciler.Fiber {
 
   /// calls any `onDisappear` handlers on self or children
   func callOnDisappearRecursive() {
-    _ = walk(self) { fiber in
+    _ = walk(self) { fiber -> WalkWorkResult<Void> in
       if case let .view(action as AppearanceActionType, _) = fiber.content {
         action.disappear?()
       }
-      return true
+      return .stepIn
     }
   }
 }

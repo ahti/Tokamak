@@ -17,29 +17,18 @@
 
 @_spi(TokamakCore)
 public enum WalkWorkResult<Success> {
+  /// continue by recursing into children, if any
   case stepIn
+  /// continue over to next sibling
   case stepOver
+  /// stop iterating by returning result
   case `break`(with: Success)
-  case pause
 }
 
 @_spi(TokamakCore)
 public enum WalkResult<Renderer: FiberRenderer, Success> {
   case success(Success)
   case finished
-  case paused(at: FiberReconciler<Renderer>.Fiber)
-}
-
-/// Walk a fiber tree from `root` until the `work` predicate returns `false`.
-@_spi(TokamakCore)
-@discardableResult
-public func walk<Renderer: FiberRenderer>(
-  _ root: FiberReconciler<Renderer>.Fiber,
-  _ work: @escaping (FiberReconciler<Renderer>.Fiber) throws -> Bool
-) rethrows -> WalkResult<Renderer, ()> {
-  try walk(root) {
-    try work($0) ? .stepIn : .pause
-  }
 }
 
 /// Parent-first depth-first traversal of a `Fiber` tree.
@@ -62,7 +51,6 @@ public func walk<Renderer: FiberRenderer, Success>(
     // Perform work on the node
     switch try work(current) {
     case let .break(success): return .success(success)
-    case .pause: return .paused(at: current)
     case .stepIn:
       // Walk into the child
       if let child = current.child {
